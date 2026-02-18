@@ -21,6 +21,7 @@ import numpy as np
 import pandas as pd
 from matplotlib import colors
 from matplotlib.figure import Figure
+from matplotlib.axes import Axes
 from monty.json import MSONable
 from monty.serialization import dumpfn, loadfn
 from pymatgen.core.composition import Composition, Element
@@ -2581,8 +2582,9 @@ class DefectThermodynamics(MSONable):
         linestyles: str | list[str] = "-",
         auto_labels: bool = False,
         filename: PathLike | None = None,
+        ax: Axes | None = None,
         **kwargs,
-    ) -> Figure | list[Figure]:
+    ) -> Figure | None | list[Figure | None]:
         r"""
         Produce a defect formation energy vs Fermi level plot (a.k.a. a defect
         formation energy / transition level diagram), returning the
@@ -2808,7 +2810,7 @@ class DefectThermodynamics(MSONable):
 
                 with warnings.catch_warnings():  # avoid double warning about no chempots supplied
                     warnings.filterwarnings("ignore", "No chemical potentials")
-                    fig = formation_energy_plot(
+                    fig, legend = formation_energy_plot(
                         thermo_to_plot,
                         dft_chempots=dft_chempots,
                         el_refs=el_refs,
@@ -2823,8 +2825,9 @@ class DefectThermodynamics(MSONable):
                         linestyles=linestyles,
                         auto_labels=auto_labels,
                         filename=plot_filename,
+                        ax=ax,
                     )
-                figs.append(fig)
+                figs.append((fig, legend))
 
             return figs[0] if len(figs) == 1 else figs
 
@@ -5743,6 +5746,13 @@ class FermiSolver(MSONable):
                 **kwargs,
             )
 
+            # print("\n\nGenerated defect_system:")
+            # for defect in defect_system.defect_species:
+            #     print(f"\n{defect.name}")
+            #     for charge, charge_state in defect.charge_states.items():
+            #         print(f"{charge_state.charge}, {charge_state.degeneracy}, {charge_state.fixed_concentration}")
+
+
             with np.errstate(all="ignore"):
                 conc_dict = defect_system.concentration_dict(
                     decomposed=per_charge,
@@ -8041,6 +8051,7 @@ class FermiSolver(MSONable):
 
         self._fix_defect_concentrations(defect_system, fixed_defects, fixed_concs)  # for fixed_defects
         defect_system.temperature = quenched_temperature
+
         return defect_system
 
 

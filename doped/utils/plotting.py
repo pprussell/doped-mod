@@ -18,6 +18,7 @@ import numpy as np
 from matplotlib import colormaps, ticker
 from matplotlib.colors import Colormap, ListedColormap
 from matplotlib.font_manager import FontProperties
+from matplotlib.axes import Axes
 from pymatgen.core.periodic_table import Element
 from pymatgen.util.string import latexify
 from pymatgen.util.typing import PathLike
@@ -137,7 +138,7 @@ def get_linestyles(linestyles: str | list[str] = "-", num_lines: int = 1) -> lis
     return linestyles * (num_lines // len(linestyles)) + linestyles[: num_lines % len(linestyles)]
 
 
-def _get_TLD_plot_setup(colormap, linestyles, xy):
+def _get_TLD_plot_setup(colormap, linestyles, xy, standalone:bool=True):
     # future updated colour handling (based on defect type etc) should remove the need for this:
     num_lines = len(xy)
     if num_lines <= 10:
@@ -160,8 +161,14 @@ def _get_TLD_plot_setup(colormap, linestyles, xy):
 
     # generate plot:
     styled_fig_size = plt.rcParams["figure.figsize"]
-    fig, ax = plt.subplots(figsize=((2.6 / 3.5) * styled_fig_size[0], (1.95 / 3.5) * styled_fig_size[1]))
-    # Gives a final figure width matching styled_fig_size, with dimensions matching the doped default
+
+    if standalone:
+        fig, ax = plt.subplots(figsize=((2.6 / 3.5) * styled_fig_size[0], (1.95 / 3.5) * styled_fig_size[1]))
+        # Gives a final figure width matching styled_fig_size, with dimensions matching the doped default
+    else:
+        fig = None
+        ax = None
+
     styled_font_size = plt.rcParams["font.size"]
     styled_linewidth = plt.rcParams["lines.linewidth"]
     styled_markersize = plt.rcParams["lines.markersize"]
@@ -1046,6 +1053,7 @@ def formation_energy_plot(
     linestyles: str | list[str] = "-",
     auto_labels: bool = False,
     filename: PathLike | None = None,
+    ax:Axes | None = None
 ):
     """
     Produce defect formation energy vs Fermi level plot.
@@ -1128,12 +1136,15 @@ def formation_energy_plot(
         colors,
         linestyles,
         fig,
-        ax,
+        setup_ax,
         styled_fig_size,
         styled_font_size,
         styled_linewidth,
         styled_markersize,
-    ) = _get_TLD_plot_setup(colormap, linestyles, all_lines_xy if all_entries is True else xy)
+    ) = _get_TLD_plot_setup(colormap, linestyles, all_lines_xy if all_entries is True else xy, ax is None)
+
+    if ax is None:
+        ax = setup_ax
 
     defect_names_for_legend = _plot_formation_energy_lines(  # plot formation energies and get legend names
         all_lines_xy if all_entries is True else xy,
@@ -1217,7 +1228,8 @@ def formation_energy_plot(
     user_figsize_legend_fontsize_ratio = (plt.rcParams["figure.figsize"][1] / get_legend_font_size()) / (
         3.5 / 9
     )
-    ax.legend(
+
+    legend = ax.legend(
         legend_txt,
         loc="upper left",  # (of bbox)
         bbox_to_anchor=(1.05, 1),
@@ -1239,9 +1251,10 @@ def formation_energy_plot(
     if chempot_table and dft_chempots:
         plot_chemical_potential_table(ax, dft_chempots, el_refs=el_refs)
 
-    _set_title_and_save_figure(ax, fig, title, chempot_table, filename, styled_font_size)
+    if fig is not None:
+        _set_title_and_save_figure(ax, fig, title, chempot_table, filename, styled_font_size)
 
-    return fig
+    return fig, legend
 
 
 def plot_chemical_potential_table(
